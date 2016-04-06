@@ -1,22 +1,96 @@
-$(function() {
-  // TODO: get p, i, d, setpoint, moveFactor, absolute tolerance
-  // TODO: display current position in graph
-  $('#run').onClick();
-  runSimulation(0.2, 0, 0.01, 0.2, 0.5, 20);
+var ctx, chart, movable;
+var time = 0;
 
+$(function() {
+  movable = new Subsystem();
+  $('#currentPosition').text("0");
+  $('#run').click(function(){
+    var p = $('#p').val();
+    var i = $('#i').val();
+    var d = $('#d').val();
+    var tolerance = $('#tolerance').val();
+    var move = $('#move').val();
+    var setpoint = $('#setpoint').val();
+    runSimulation(p, i, d, move, tolerance, setpoint);
+  });
+
+  $('#resetPosition').click(function(){
+    movable = new Subsystem();
+    $('#currentPosition').text("0");
+  });
+
+  $('#resetValues').click(function(){
+    // $(this).closest('form').find("input[type=number]").val("");
+    $('#sim-form').submit();
+    movable = new Subsystem();
+    $('#currentPosition').text("0");
+  });
+
+  ctx = $("#myChart").get(0).getContext("2d");
+  createChart();
 });
 
+function createChart(){
+  var data = {
+    labels: [],
+    datasets: [
+        {
+            label: "Position",
+            fillColor: "rgba(220,220,220,0.2)",
+            strokeColor: "rgba(220,220,220,1)",
+            pointColor: "rgba(220,220,220,1)",
+            pointStrokeColor: "#fff",
+            pointHighlightFill: "#fff",
+            pointHighlightStroke: "rgba(220,220,220,1)",
+            data: []
+        }
+    ]
+};
+var options = {
+  scaleShowGridLines: true,
+  bezierCurve : true
+};
+  chart = new Chart(ctx).Line(data, options);
+  Chart.defaults.global.responsive = true;
+  Chart.defaults.global.animation = false;
+};
+
+function updateChart(){
+  chart.addData([movable.returnPIDInput()], time);
+  time += 20;
+}
+
 function runSimulation(p, i, d, moveFactor, tolerance, setpoint){
-  var movable = new Subsystem();
   movable.setMoveFactor(moveFactor);
   movable.enable(p, i, d);
   movable.setAbsoluteTolerance(tolerance);
-  while(!movable.onTarget()){
-    movable.setSetpoint(setpoint);
-    console.log(movable.returnPIDInput());
-  }
-  movable.disable();
+  // chart.clear();
+  chart.destroy();
+  createChart();
+  time = 0;
+  // while(!movable.onTarget()){
+  //   movable.setSetpoint(setpoint);
+  //   $('#currentPosition').text(movable.returnPIDInput());
+  //
+  // }
+  // movable.disable();
+  move(setpoint);
 }
+
+
+function move(setpoint){
+  if(!movable.onTarget()){
+    movable.setSetpoint(setpoint);
+    $('#currentPosition').text(movable.returnPIDInput());
+    updateChart();
+    setTimeout(function(){move(setpoint);}, 20);
+  } else {
+    $('#currentPosition').text(movable.returnPIDInput());
+    updateChart();
+    movable.disable();
+  }
+}
+
 
 function Subsystem() {
   return {
@@ -35,8 +109,8 @@ function Subsystem() {
       return this.position;
     },
     usePIDOutput: function(value) {
-      // value = Math.min(1, value);
-      // value = Math.max(-1, value);
+      value = Math.min(1, value);
+      value = Math.max(-1, value);
       this.position += value * this.moveFactor;
     },
     enable: function(p, i, d) {

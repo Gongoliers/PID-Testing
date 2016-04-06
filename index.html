@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
-  <head>
+
+<head>
     <meta charset="utf-8">
     <title>PID Testing</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/1.0.2/Chart.min.js" charset="utf-8"></script>
@@ -10,19 +11,49 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
     <link charset="utf-8" href="style.css" media="screen" rel="stylesheet" title="no title">
     <link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
-  </head>
-  <body>
+</head>
 
-    <form class="sim-form">
-      P: <input type="text" name="P" value="0.1" id="p"> <br>
-      I: <input type="text" name="I" value="0" id="i"> <br>
-      D: <input type="text" name="D" value="0" id="d"> <br>
-      Setpoint: <input type="text" name="setpoint" value="0" id="setpoint"> <br>
-      Move factor: <input type="text" name="move" value="1" id="move"> <br>
-      Tolerance: <input type="text" name="tolerance" value="0.1" id="tolerance"> <br>
-      <input type="button" name="Run" value="Run" id="run">
-    </form>
+<body>
+    <div class="container">
+      <div class="col-md-6">
+        <form id="sim-form">
+            <div class="form-group">
+                <label for="p">P constant</label>
+                <input type="number" class="form-control" id="p" placeholder="0.0" step="any">
+            </div>
+            <div class="form-group">
+                <label for="i">I constant</label>
+                <input type="number" class="form-control" id="i" placeholder="0.0" step="any">
+            </div>
+            <div class="form-group">
+                <label for="d">D constant</label>
+                <input type="number" class="form-control" id="d" placeholder="0.0" step="any">
+            </div>
+            <div class="form-group">
+                <label for="tolerance">Tolerance</label>
+                <input type="number" class="form-control" id="tolerance" placeholder="0.0" step="any">
+            </div>
+            <div class="form-group">
+                <label for="move">Move factor (moves x units every 20 ms)</label>
+                <input type="number" class="form-control" id="move" placeholder="0.0" step="any">
+            </div>
+            <div class="form-group">
+                <label for="setpoint">Setpoint</label>
+                <input type="number" class="form-control" id="setpoint" placeholder="0.0" step="any">
+            </div>
+            <button type="button" class="btn btn-danger" id="run">Run</button>
+            <button type="button" class="btn btn-primary" id="resetPosition">Reset Position</button>
+            <button type="button" class="btn btn-primary" id="resetValues">Reset Values</button>
+        </form>
+        <h4>Current Position: <span id="currentPosition"></span></h4>
+      </div>
+      <div class="col-md-6">
+        <canvas id="myChart" width="400" height="400"></canvas>
+      </div>
+    </div>
 
-  </body>
-  <script src="app.js" charset="utf-8"></script>
+
+</body>
+<script src="app.js" charset="utf-8"></script>
+
 </html>
