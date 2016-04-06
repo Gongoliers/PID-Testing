@@ -26,6 +26,10 @@ $(function() {
     $('#currentPosition').text("0");
   });
 
+  $('#stop').click(function(){
+    movable.pidController = null;
+  });
+
   ctx = $("#myChart").get(0).getContext("2d");
   createChart();
 });
@@ -36,7 +40,7 @@ function createChart(){
     datasets: [
         {
             label: "Position",
-            fillColor: "rgba(220,220,220,0.2)",
+            fillColor: "rgba(0, 0, 0, 0)",
             strokeColor: "rgba(220,220,220,1)",
             pointColor: "rgba(220,220,220,1)",
             pointStrokeColor: "#fff",
@@ -125,7 +129,7 @@ function Subsystem() {
     },
     onTarget: function(){
       if(this.pidController === null)
-        return false;
+        return true;
       return this.pidController.onTarget();
     }
   };
