@@ -9,7 +9,7 @@ $(function() {
     var i = $('#i').val();
     var d = $('#d').val();
     var tolerance = $('#tolerance').val();
-    var move = $('#move').val();
+    var move = $('#move').val() / 1000.0 * 20;
     var setpoint = $('#setpoint').val();
     runSimulation(p, i, d, move, tolerance, setpoint);
   });
