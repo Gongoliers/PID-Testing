@@ -1,17 +1,22 @@
 $(function() {
-  var movable = new Subsystem();
-  // TODO: get p, i, d, setpoint, moveFactor
+  // TODO: get p, i, d, setpoint, moveFactor, absolute tolerance
   // TODO: display current position in graph
-  movable.setMoveFactor(1);
-  movable.enable(0.3, 0, 0.04);
-  movable.setAbsoluteTolerance(0.5);
+  $('#run').onClick();
+  runSimulation(0.2, 0, 0.01, 0.2, 0.5, 20);
+
+});
+
+function runSimulation(p, i, d, moveFactor, tolerance, setpoint){
+  var movable = new Subsystem();
+  movable.setMoveFactor(moveFactor);
+  movable.enable(p, i, d);
+  movable.setAbsoluteTolerance(tolerance);
   while(!movable.onTarget()){
-    movable.setSetpoint(20);
+    movable.setSetpoint(setpoint);
     console.log(movable.returnPIDInput());
   }
   movable.disable();
-
-});
+}
 
 function Subsystem() {
   return {
