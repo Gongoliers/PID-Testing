@@ -2,171 +2,176 @@ var ctx, chart, movable;
 var time = 0;
 
 $(function() {
-  movable = new Subsystem();
-  $('#currentPosition').text("0");
-  $('#run').click(function(){
-    var p = $('#p').val();
-    var i = $('#i').val();
-    var d = $('#d').val();
-    var tolerance = $('#tolerance').val();
-    var move = $('#move').val() / 1000.0 * 20;
-    var setpoint = $('#setpoint').val();
-    runSimulation(p, i, d, move, tolerance, setpoint);
-  });
-
-  $('#resetPosition').click(function(){
     movable = new Subsystem();
     $('#currentPosition').text("0");
-  });
+    $('#run').click(function() {
+        var p = $('#p').val();
+        var i = $('#i').val();
+        var d = $('#d').val();
+        var tolerance = $('#tolerance').val();
+        var move = $('#move').val() / 1000.0 * 20;
+        var setpoint = $('#setpoint').val();
+        runSimulation(p, i, d, move, tolerance, setpoint);
+    });
 
-  $('#resetValues').click(function(){
-    // $(this).closest('form').find("input[type=number]").val("");
-    $('#sim-form').submit();
-    movable = new Subsystem();
-    $('#currentPosition').text("0");
-  });
+    $('#resetPosition').click(function() {
+        movable = new Subsystem();
+        $('#currentPosition').text("0");
+    });
 
-  $('#stop').click(function(){
-    movable.pidController = null;
-  });
+    $('#resetValues').click(function() {
+        // $(this).closest('form').find("input[type=number]").val("");
+        $('#sim-form').submit();
+        movable = new Subsystem();
+        $('#currentPosition').text("0");
+    });
 
-  ctx = $("#myChart").get(0).getContext("2d");
-  createChart();
+    $('#stop').click(function() {
+        movable.pidController = null;
+    });
+
+    ctx = $("#myChart").get(0).getContext("2d");
+    createChart();
 });
 
-function createChart(){
-  var data = {
-    labels: [],
-    datasets: [
-        {
+function createChart() {
+    var data = {
+        labels: [],
+        datasets: [{
             label: "Position",
             fillColor: "rgba(0, 0, 0, 0)",
-            strokeColor: "rgba(220,220,220,1)",
-            pointColor: "rgba(220,220,220,1)",
+            strokeColor: "#186b10",
+            pointColor: "#186b10",
             pointStrokeColor: "#fff",
             pointHighlightFill: "#fff",
-            pointHighlightStroke: "rgba(220,220,220,1)",
+            pointHighlightStroke: "#186b10",
             data: []
-        }
-    ]
-};
-var options = {
-  scaleShowGridLines: true,
-  bezierCurve : true
-};
-  chart = new Chart(ctx).Line(data, options);
-  Chart.defaults.global.responsive = true;
-  Chart.defaults.global.animation = false;
+        }]
+    };
+    var options = {
+        scaleShowGridLines: true,
+        bezierCurve: true
+    };
+    chart = new Chart(ctx).Line(data, options);
+    Chart.defaults.global.responsive = true;
+    Chart.defaults.global.animation = false;
 };
 
-function updateChart(){
-  chart.addData([movable.returnPIDInput()], time);
-  time += 20;
+function updateChart() {
+    chart.addData([movable.returnPIDInput()], time);
+    time += 20;
 }
 
-function runSimulation(p, i, d, moveFactor, tolerance, setpoint){
-  movable.setMoveFactor(moveFactor);
-  movable.enable(p, i, d);
-  movable.setAbsoluteTolerance(tolerance);
-  // chart.clear();
-  chart.destroy();
-  createChart();
-  time = 0;
-  // while(!movable.onTarget()){
-  //   movable.setSetpoint(setpoint);
-  //   $('#currentPosition').text(movable.returnPIDInput());
-  //
-  // }
-  // movable.disable();
-  move(setpoint);
+function runSimulation(p, i, d, moveFactor, tolerance, setpoint) {
+    movable.setMoveFactor(moveFactor);
+    movable.enable(p, i, d);
+    movable.setAbsoluteTolerance(tolerance);
+    // chart.clear();
+    chart.destroy();
+    createChart();
+    time = 0;
+    // while(!movable.onTarget()){
+    //   movable.setSetpoint(setpoint);
+    //   $('#currentPosition').text(movable.returnPIDInput());
+    //
+    // }
+    // movable.disable();
+    move(setpoint);
 }
 
 
-function move(setpoint){
-  if(!movable.onTarget()){
-    movable.setSetpoint(setpoint);
-    $('#currentPosition').text(movable.returnPIDInput());
-    updateChart();
-    setTimeout(function(){move(setpoint);}, 20);
-  } else {
-    $('#currentPosition').text(movable.returnPIDInput());
-    updateChart();
-    movable.disable();
-  }
+function move(setpoint) {
+    if (!movable.onTarget()) {
+        movable.setSetpoint(setpoint);
+        $('#currentPosition').text(movable.returnPIDInput());
+        updateChart();
+        setTimeout(function() {
+            move(setpoint);
+        }, 20);
+    } else {
+        $('#currentPosition').text(movable.returnPIDInput());
+        updateChart();
+        movable.disable();
+    }
 }
 
 
 function Subsystem() {
-  return {
-    position: 0,
-    pidController: null,
-    moveFactor: 1,
-    setAbsoluteTolerance: function(tolerance){
-      if(this.pidController === null)
-        return;
-      this.pidController.setAbsoluteTolerance(tolerance);
-    },
-    setMoveFactor: function(factor) {
-      this.moveFactor = factor;
-    },
-    returnPIDInput: function() {
-      return this.position;
-    },
-    usePIDOutput: function(value) {
-      value = Math.min(1, value);
-      value = Math.max(-1, value);
-      this.position += value * this.moveFactor;
-    },
-    enable: function(p, i, d) {
-      this.pidController = new PIDController(p, i, d);
-    },
-    disable: function() {
-      this.pidController = null;
-    },
-    setSetpoint: function(setpoint) {
-      if (this.pidController !== null)
-        this.usePIDOutput(this.pidController.setSetpoint(setpoint, this.returnPIDInput()));
-    },
-    onTarget: function(){
-      if(this.pidController === null)
-        return true;
-      return this.pidController.onTarget();
+    return {
+        position: 0,
+        pidController: null,
+        moveFactor: 1,
+        setAbsoluteTolerance: function(tolerance) {
+            if (this.pidController === null)
+                return;
+            this.pidController.setAbsoluteTolerance(tolerance);
+        },
+        setMoveFactor: function(factor) {
+            this.moveFactor = factor;
+        },
+        returnPIDInput: function() {
+            return this.position;
+        },
+        usePIDOutput: function(value) {
+            value = Math.min(1, value);
+            value = Math.max(-1, value);
+            this.position += value * this.moveFactor;
+        },
+        enable: function(p, i, d) {
+            this.pidController = new PIDController(p, i, d);
+        },
+        disable: function() {
+            this.pidController = null;
+        },
+        setSetpoint: function(setpoint) {
+            if (this.pidController !== null)
+                this.usePIDOutput(this.pidController.setSetpoint(setpoint, this.returnPIDInput()));
+        },
+        onTarget: function() {
+            if (this.pidController === null)
+                return true;
+            return this.pidController.onTarget();
+        },
+        gaussNoise: function(mean, sigma) {
+            var gaussianConstant = 1 / Math.sqrt(2 * Math.PI);
+            var x = 0;
+            return gaussianConstant * Math.exp(-.5 * x * x) / sigma;
+        }
+      };
     }
-  };
-}
 
-function PIDController(p, i, d, input) {
-  return {
-    p: p,
-    i: i,
-    d: d,
-    iSum: 0,
-    lastValue: 0,
-    input: input,
-    setpoint: 0,
-    tolerance: 0,
-    setAbsoluteTolerance: function(tolerance){
-      this.tolerance = tolerance;
-    },
-    setSetpoint: function(setpoint, input) {
-      this.setpoint = setpoint;
-      this.input = input;
-      return this.proportional(setpoint) + this.integral(setpoint) + this.differential(setpoint);
-    },
-    onTarget: function(){
-      return Math.abs(this.setpoint - this.input) <= this.tolerance;
-    },
-    proportional: function(setpoint) {
-      return this.p * (setpoint - this.input);
-    },
-    integral: function(setpoint) {
-      this.iSum += setpoint - this.input;
-      return this.iSum * this.i;
-    },
-    differential: function(setpoint) {
-      var current = this.d * ((setpoint - this.input) - this.lastValue);
-      this.lastValue = setpoint - this.input;
-      return current;
+    function PIDController(p, i, d, input) {
+        return {
+            p: p,
+            i: i,
+            d: d,
+            iSum: 0,
+            lastValue: 0,
+            input: input,
+            setpoint: 0,
+            tolerance: 0,
+            setAbsoluteTolerance: function(tolerance) {
+                this.tolerance = tolerance;
+            },
+            setSetpoint: function(setpoint, input) {
+                this.setpoint = setpoint;
+                this.input = input;
+                return this.proportional(setpoint) + this.integral(setpoint) + this.differential(setpoint);
+            },
+            onTarget: function() {
+                return Math.abs(this.setpoint - this.input) <= this.tolerance;
+            },
+            proportional: function(setpoint) {
+                return this.p * (setpoint - this.input);
+            },
+            integral: function(setpoint) {
+                this.iSum += setpoint - this.input;
+                return this.iSum * this.i;
+            },
+            differential: function(setpoint) {
+                var current = this.d * ((setpoint - this.input) - this.lastValue);
+                this.lastValue = setpoint - this.input;
+                return current;
+            }
+        };
     }
-  };
-}
