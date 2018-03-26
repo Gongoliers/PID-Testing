@@ -2,7 +2,7 @@ var ctx, chart, movable;
 var time = 0;
 
 $(function() {
-    movable = new Subsystem();
+    movable = new Motor();
     $('#currentPosition').text("0");
     $('#run').click(function() {
         var p = $('#p').val();
@@ -12,25 +12,25 @@ $(function() {
         var ffa = $('#ffa').val();
         var tolerance = $('#tolerance').val();
         var totalTime = $('#time').val();
-        var move = $('#move').val() / 1000.0 * 20;
+        var move = $('#move').val();
         var setpoint = $('#setpoint').val();
         runSimulation(p, i, d, ffv, ffa, move, tolerance, setpoint, totalTime);
     });
 
     $('#resetPosition').click(function() {
-        movable = new Subsystem();
+        movable = new Motor();
         $('#currentPosition').text("0");
     });
 
     $('#resetValues').click(function() {
         // $(this).closest('form').find("input[type=number]").val("");
         $('#sim-form').submit();
-        movable = new Subsystem();
+        movable = new Motor();
         $('#currentPosition').text("0");
     });
 
     $('#stop').click(function() {
-        movable.pidController = null;
+        movable.controller = null;
     });
 
     ctx = $("#myChart").get(0).getContext("2d");
@@ -42,34 +42,47 @@ function createChart() {
         labels: [],
         datasets: [{
             label: "Position",
-            fillColor: "rgba(0, 0, 0, 0)",
             strokeColor: "#186b10",
-            pointColor: "#186b10",
-            pointStrokeColor: "#fff",
-            pointHighlightFill: "#fff",
-            pointHighlightStroke: "#186b10",
+            fill: false,
+            borderColor: '#186b10',
             data: []
         }]
     };
     var options = {
         scaleShowGridLines: true,
-        bezierCurve: true
+        animation: {
+            duration: 0, // general animation time
+        },
+        hover: {
+            animationDuration: 0, // duration of animations when hovering an item
+        },
+        responsiveAnimationDuration: 0
     };
-    chart = new Chart(ctx).Line(data, options);
+    chart = new Chart(ctx, {
+        type: 'line',
+        data: data, 
+        options: options
+    })
+    // chart = new Chart(ctx).Line(data, options);
     Chart.defaults.global.responsive = true;
     Chart.defaults.global.animation = false;
+    Chart.defaults.global.elements.point.radius = 0;
 };
 
 function updateChart() {
-    chart.addData([movable.returnPIDInput()], time);
+    chart.data.labels.push(Math.round(time * 100) / 100.0);
+    chart.data.datasets.forEach((dataset) => {
+        dataset.data.push(movable.getPosition());
+    })
+    chart.update();
+    // chart.addData([movable.getPosition()], time);
     time += 0.01;
 }
 
 function runSimulation(p, i, d, ffv, ffa, moveFactor, tolerance, setpoint, totalTime) {
-    movable.spline = new HermiteSpline(movable.position, 0, setpoint, 0, totalTime);
-    movable.setMoveFactor(moveFactor);
-    movable.enable(p, i, d, ffv, ffa);
-    movable.setAbsoluteTolerance(tolerance);
+    movable.spline = new HermiteSpline(movable.getPosition(), 0, setpoint, 0, totalTime);
+    movable.maxSpeed = moveFactor;
+    movable.enable(p, i, d, ffv, ffa, tolerance);
     chart.destroy();
     createChart();
     time = 0;
@@ -80,68 +93,62 @@ function runSimulation(p, i, d, ffv, ffa, moveFactor, tolerance, setpoint, total
 function move(setpoint) {
     if (!movable.onTarget(setpoint)) {
         movable.setSetpoint(setpoint);
-        $('#currentPosition').text(movable.returnPIDInput());
+        $('#currentPosition').text(movable.getPosition());
         updateChart();
         setTimeout(function() {
             move(setpoint);
         }, 0.01);
     } else {
-        $('#currentPosition').text(movable.returnPIDInput());
+        $('#currentPosition').text(movable.getPosition());
         updateChart();
         movable.disable();
     }
 }
 
+function Motor(){
+    this.spline = null;
+    this.startTime = -1;
+    this.lastUpdateTime = Date.now() / 1000.0;
+    this.maxSpeed = 1;
+    this.currentPosition = 0;
+    this.controller = null;
 
-function Subsystem() {
-    return {
-        position: 0,
-        pidController: null,
-        moveFactor: 1,
-        spline: null,
-        lastTime: Date.now() / 1000.0,
-        setAbsoluteTolerance: function(tolerance) {
-            if (this.pidController === null)
-                return;
-            this.pidController.tolerance = tolerance;
-        },
-        setMoveFactor: function(factor) {
-            this.moveFactor = factor;
-        },
-        returnPIDInput: function() {
-            return this.position;
-        },
-        usePIDOutput: function(value) {
-            var currentTime = Date.now() / 1000.0;
-            this.position += value * this.moveFactor;// * (currentTime - this.lastTime);
-            this.lastTime = currentTime;
-        },
-        enable: function(p, i, d, v, a) {
-            this.pidController = new MotionProfileController(p, i, d, v, a, 0.001);
-        },
-        disable: function() {
-            this.pidController = null;
-        },
-        setSetpoint: function(setpoint) {
-            var targetPos = this.spline.calculate(time);
-            var targetVelocity = (targetPos - this.spline.calculate(time - 0.01)) / 0.01;
-            var targetVelocityNext = (this.spline.calculate(time + 0.01) - targetPos) / 0.01;
-            var targetAcceleration = (targetVelocityNext - targetVelocity) / 0.02;
-            if (this.pidController !== null)
-                this.usePIDOutput(this.pidController.calculate(this.returnPIDInput(), targetPos, targetVelocity, targetAcceleration));
-        },
-        onTarget: function(setpoint) {
-            if (this.pidController === null)
-                return true;
-            return this.pidController.isOnTarget(setpoint, this.returnPIDInput());
-        },
-        gaussNoise: function(mean, sigma) {
-            var gaussianConstant = 1 / Math.sqrt(2 * Math.PI);
-            var x = 0;
-            return gaussianConstant * Math.exp(-.5 * x * x) / sigma;
-        }
-      };
-    }
+    this.enable = function(p, i, d, v, a, tolerance){
+        this.controller = new MotionProfileController(p, i, d, v, a, tolerance);
+        this.startTime = Date.now() / 1000.0;
+        this.lastUpdateTime = this.startTime;
+    };
+
+    this.disable = function(){
+        this.controller = null;
+    };
+
+    this.getPosition = function(){
+        return this.currentPosition;
+    };
+
+    this.setOutput = function(value){
+        var currentTime = Date.now() / 1000.0;
+        this.currentPosition += value * this.maxSpeed * (currentTime - this.lastUpdateTime);
+        this.lastUpdateTime = currentTime;
+    };
+
+    this.setSetpoint = function(setpoint){
+        var dt = 0.00001;
+        var time = Date.now() / 1000.0 - this.startTime;
+        var targetPos = this.spline.calculate(time);
+        var targetVelocity = this.spline.calculateVelocity(time);
+        var targetAcceleration = this.spline.calculateAcceleration(time);
+        if (this.controller !== null)
+            this.setOutput(this.controller.calculate(this.getPosition(), targetPos, targetVelocity, targetAcceleration));
+    };
+
+    this.onTarget = function(setpoint){
+        if (this.controller === null)
+            return true;
+        return this.controller.isOnTarget(setpoint, this.getPosition());
+    };
+}
 
 function MotionProfileController(p, i, d, ffv, ffa, tolerance) {
     this.kp = p;
@@ -220,6 +227,19 @@ function HermiteSpline(p0, v0, p1, v1, totalTime){
         var third = (-2 * Math.pow(time, 3) + 3 * Math.pow(time, 2)) * this.p1;
         var fourth = (Math.pow(time, 3) - Math.pow(time, 2)) * this.v1;
         return first + second + third + fourth;
+    }
+
+    this.calculateVelocity = function(time){
+        var dt = 0.0001;
+        var pos = this.calculate(time);
+        var velocity = (pos - this.calculate(time - dt)) / dt;
+        return velocity;
+    };
+
+    this.calculateAcceleration = function(time){
+        var dt = 0.0001;
+        var accel = (this.calculateVelocity(time + dt) - this.calculateVelocity(time)) / (2 * dt);
+        return accel;
     }
 }
 
