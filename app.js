@@ -238,8 +238,8 @@ function HermiteSpline(p0, v0, p1, v1, totalTime){
 
     this.calculateAcceleration = function(time){
         var dt = 0.0001;
-        var accel = (this.calculateVelocity(time + dt) - this.calculateVelocity(time)) / (2 * dt);
+        var accel = (this.calculateVelocity(time + dt) - this.calculateVelocity(time)) / dt;
         return accel;
-    }
+    };
 }
 
