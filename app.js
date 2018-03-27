@@ -1,7 +1,8 @@
 var ctx, chart, movable;
 var fieldCtx;
-var time = 0;
+var time = Date.now() / 1000.0;
 var fieldSim;
+var pos = 0;
 
 $(function() {
     movable = new Motor();
@@ -17,7 +18,7 @@ $(function() {
         var momentum = $('#momentum').val();
         var move = $('#move').val();
         var setpoint = $('#setpoint').val();
-        runSimulation(p, i, d, ffv, ffa, move, tolerance, setpoint, totalTime, momentum);
+        runSimulation(p, i, d, ffv, ffa, move, tolerance, [{pose: setpoint, time: totalTime}, {pose: 0, time: totalTime}], momentum);
     });
 
     $('#resetPosition').click(function() {
@@ -80,40 +81,48 @@ function createChart() {
 };
 
 function updateChart() {
-    chart.data.labels.push(Math.round(time * 100) / 100.0);
+    chart.data.labels.push(Math.round((Date.now()/1000.0 - time) * 100) / 100.0);
     chart.data.datasets.forEach((dataset) => {
         dataset.data.push(movable.getPosition());
     });
     fieldSim.update({x: movable.getPosition(), y: 1.3});
     fieldSim.draw();
     chart.update();
-    time += 0.01;
 }
 
-function runSimulation(p, i, d, ffv, ffa, moveFactor, tolerance, setpoint, totalTime, momentum) {
-    movable.spline = new HermiteSpline(movable.getPosition(), 0, setpoint, 0, totalTime);
+function runSimulation(p, i, d, ffv, ffa, moveFactor, tolerance, setpoints, momentum) {
+    movable.spline = new HermiteSpline(movable.getPosition(), 0, setpoints[0].pose, 0, setpoints[0].time);
     movable.momentum = momentum;
     movable.maxSpeed = moveFactor;
     movable.enable(p, i, d, ffv, ffa, tolerance);
     chart.destroy();
     createChart();
-    time = 0;
-    move(setpoint);
+    time = Date.now() / 1000.0;
+    move(setpoints[0].pose, function(){
+        pos++;
+        if(pos < setpoints.length){
+            movable.velocity /= moveFactor;
+            runSimulation(p, i, d, ffv, ffa, moveFactor, tolerance, setpoints.slice(1), momentum);
+        }
+    });
 }
 
 
-function move(setpoint) {
+function move(setpoint, onFinish) {
     if (!movable.onTarget(setpoint)) {
         movable.setSetpoint(setpoint);
         $('#currentPosition').text(movable.getPosition());
         updateChart();
         setTimeout(function() {
-            move(setpoint);
+            move(setpoint, onFinish);
         }, 0.01);
     } else {
         $('#currentPosition').text(movable.getPosition());
         updateChart();
         movable.disable();
+        if(onFinish){
+            onFinish();
+        }
     }
 }
 
@@ -174,10 +183,10 @@ function Motor(){
 
     this.setSetpoint = function(setpoint){
         var dt = 0.00001;
-        var time = Date.now() / 1000.0 - this.startTime;
-        var targetPos = this.spline.calculate(time);
-        var targetVelocity = this.spline.calculateVelocity(time);
-        var targetAcceleration = this.spline.calculateAcceleration(time);
+        var t = Date.now() / 1000.0 - this.startTime;
+        var targetPos = this.spline.calculate(t);
+        var targetVelocity = this.spline.calculateVelocity(t);
+        var targetAcceleration = this.spline.calculateAcceleration(t);
         if (this.controller !== null)
             this.setOutput(this.controller.calculate(this.getPosition(), targetPos, targetVelocity, targetAcceleration));
     };
