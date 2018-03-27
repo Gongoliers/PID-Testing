@@ -1,8 +1,7 @@
 var ctx, chart, movable;
 var fieldCtx;
 var time = 0;
-
-var y = 0;
+var fieldSim;
 
 $(function() {
     movable = new Motor();
@@ -44,14 +43,8 @@ $(function() {
 });
 
 function createField(){
-    fieldCtx.clearRect(0, 0, 400, 222);
-    // fieldCtx.fillStyle = "gray";
-    // fieldCtx.fillRect(0, 0, 400, 222);
-    fieldCtx.drawImage(document.getElementById("fieldImg"), 0, 0);
-    fieldCtx.fillStyle = "rgba(255, 255, 255, 0.25)";
-    fieldCtx.fillRect(0, 0, 400, 222);
-    fieldCtx.fillStyle = "blue";
-    fieldCtx.fillRect(y * 380 / 16.4592, 1.2192 * 380/16.4592, 0.8382 * 380/16.4592, 0.8382 * 380/16.4592);
+    fieldSim = new FieldSimulation(fieldCtx, {x: 0, y: 1.3}, {x: 0.8382, y: 0.8382}, {x: 400, y: 222}, 380/16.4592);
+    fieldSim.draw();
 };
 
 function createChart() {
@@ -91,8 +84,8 @@ function updateChart() {
     chart.data.datasets.forEach((dataset) => {
         dataset.data.push(movable.getPosition());
     });
-    y = movable.getPosition();
-    createField();
+    fieldSim.update({x: movable.getPosition(), y: 1.3});
+    fieldSim.draw();
     chart.update();
     time += 0.01;
 }
@@ -123,6 +116,27 @@ function move(setpoint) {
         movable.disable();
     }
 }
+
+function FieldSimulation(canvasCtx, startingPos, size, fieldSizePixels, pixelToMeterRatio){
+    this.position = startingPos;
+    this.size = size;
+    this.ctx = canvasCtx;
+    this.pixelToMeterRatio = pixelToMeterRatio;
+    this.fieldSize = fieldSizePixels;
+
+    this.draw = function(){
+        this.ctx.clearRect(0, 0, this.fieldSize.x, this.fieldSize.y);
+        this.ctx.drawImage(document.getElementById("fieldImg"), 0, 0);
+        this.ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+        this.ctx.fillRect(0, 0, this.fieldSize.x, this.fieldSize.y);
+        this.ctx.fillStyle = "blue";
+        this.ctx.fillRect(this.position.x * pixelToMeterRatio, this.position.y * pixelToMeterRatio, this.size.x * pixelToMeterRatio, this.size.y * pixelToMeterRatio);
+    };
+
+    this.update = function(position){
+        this.position = position;
+    };
+};
 
 function Motor(){
     this.spline = null;
