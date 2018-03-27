@@ -1,5 +1,8 @@
 var ctx, chart, movable;
+var fieldCtx;
 var time = 0;
+
+var y = 0;
 
 $(function() {
     movable = new Motor();
@@ -12,9 +15,10 @@ $(function() {
         var ffa = $('#ffa').val();
         var tolerance = $('#tolerance').val();
         var totalTime = $('#time').val();
+        var momentum = $('#momentum').val();
         var move = $('#move').val();
         var setpoint = $('#setpoint').val();
-        runSimulation(p, i, d, ffv, ffa, move, tolerance, setpoint, totalTime);
+        runSimulation(p, i, d, ffv, ffa, move, tolerance, setpoint, totalTime, momentum);
     });
 
     $('#resetPosition').click(function() {
@@ -34,8 +38,21 @@ $(function() {
     });
 
     ctx = $("#myChart").get(0).getContext("2d");
+    fieldCtx = $('#field').get(0).getContext("2d");
     createChart();
+    createField();
 });
+
+function createField(){
+    fieldCtx.clearRect(0, 0, 400, 222);
+    // fieldCtx.fillStyle = "gray";
+    // fieldCtx.fillRect(0, 0, 400, 222);
+    fieldCtx.drawImage(document.getElementById("fieldImg"), 0, 0);
+    fieldCtx.fillStyle = "rgba(255, 255, 255, 0.25)";
+    fieldCtx.fillRect(0, 0, 400, 222);
+    fieldCtx.fillStyle = "blue";
+    fieldCtx.fillRect(y * 380 / 16.4592, 1.2192 * 380/16.4592, 0.8382 * 380/16.4592, 0.8382 * 380/16.4592);
+};
 
 function createChart() {
     var data = {
@@ -73,14 +90,16 @@ function updateChart() {
     chart.data.labels.push(Math.round(time * 100) / 100.0);
     chart.data.datasets.forEach((dataset) => {
         dataset.data.push(movable.getPosition());
-    })
+    });
+    y = movable.getPosition();
+    createField();
     chart.update();
-    // chart.addData([movable.getPosition()], time);
     time += 0.01;
 }
 
-function runSimulation(p, i, d, ffv, ffa, moveFactor, tolerance, setpoint, totalTime) {
+function runSimulation(p, i, d, ffv, ffa, moveFactor, tolerance, setpoint, totalTime, momentum) {
     movable.spline = new HermiteSpline(movable.getPosition(), 0, setpoint, 0, totalTime);
+    movable.momentum = momentum;
     movable.maxSpeed = moveFactor;
     movable.enable(p, i, d, ffv, ffa, tolerance);
     chart.destroy();
@@ -110,13 +129,17 @@ function Motor(){
     this.startTime = -1;
     this.lastUpdateTime = Date.now() / 1000.0;
     this.maxSpeed = 1;
+    this.velocity = 0;
     this.currentPosition = 0;
     this.controller = null;
+    this.momentum = 0.995;
 
     this.enable = function(p, i, d, v, a, tolerance){
         this.controller = new MotionProfileController(p, i, d, v, a, tolerance);
         this.startTime = Date.now() / 1000.0;
         this.lastUpdateTime = this.startTime;
+        this.controller.minI = -this.maxSpeed;
+        this.controller.maxI = this.maxSpeed;
     };
 
     this.disable = function(){
@@ -129,7 +152,9 @@ function Motor(){
 
     this.setOutput = function(value){
         var currentTime = Date.now() / 1000.0;
-        this.currentPosition += value * this.maxSpeed * (currentTime - this.lastUpdateTime);
+        var v = value * this.maxSpeed;
+        this.velocity = v * (1 - this.momentum) + this.velocity * this.momentum;
+        this.currentPosition += this.velocity * (currentTime - this.lastUpdateTime);
         this.lastUpdateTime = currentTime;
     };
 
@@ -229,17 +254,32 @@ function HermiteSpline(p0, v0, p1, v1, totalTime){
         return first + second + third + fourth;
     }
 
-    this.calculateVelocity = function(time){
-        var dt = 0.0001;
-        var pos = this.calculate(time);
-        var velocity = (pos - this.calculate(time - dt)) / dt;
-        return velocity;
+      this.calculateVelocity = function(time){
+        time /= this.totalTime;
+        if(time >= 1){
+            time = 1;
+        } else if (time <= 0){
+            time = 0;
+        }
+        var first = (6 * Math.pow(time, 2) - 6 * time) * this.p0;
+        var second = (3 * Math.pow(time, 2) - 4 * time + 1) * this.v0;
+        var third = (-6 * Math.pow(time, 2) + 6 * time) * this.p1;
+        var fourth = (3 * Math.pow(time, 2) - 2 * time) * this.v1;
+        return first + second + third + fourth;
     };
 
     this.calculateAcceleration = function(time){
-        var dt = 0.0001;
-        var accel = (this.calculateVelocity(time + dt) - this.calculateVelocity(time)) / dt;
-        return accel;
+        time /= this.totalTime;
+        if(time >= 1){
+            return 0;
+        } else if (time <= 0){
+            return 0;
+        }
+        var first = (12 * time - 6) * this.p0;
+        var second = (6 * time - 4) * this.v0;
+        var third = (-12 * time + 6) * this.p1;
+        var fourth = (6 * time - 2) * this.v1;
+        return first + second + third + fourth;
     };
 }
 

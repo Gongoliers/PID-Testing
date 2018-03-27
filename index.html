@@ -15,8 +15,8 @@
 
 <body>
     <div class="container">
-      <h1 class="text-center">Motion Profile Testing</h1>
-      <h3 class="text-center">FRC Team 5112, The Gongoliers</h3>
+      <h2 class="text-center">Motion Profile Testing</h2>
+      <h4 class="text-center">FRC Team 5112, The Gongoliers</h4>
       <div class="col-md-6">
         <form id="sim-form">
             <div class="form-group">
@@ -44,7 +44,7 @@
                 <input type="number" class="form-control" id="tolerance" placeholder="0.0" step="any">
             </div>
             <div class="form-group">
-                <label for="move">Max units per second</label>
+                <label for="move">Max meters per second</label>
                 <input type="number" class="form-control" id="move" placeholder="0.0" step="any">
             </div>
             <div class="form-group">
@@ -52,8 +52,12 @@
                 <input type="number" class="form-control" id="time" placeholder="0.0" step="any">
             </div>
             <div class="form-group">
-                <label for="setpoint">Setpoint</label>
+                <label for="setpoint">Setpoint (Meters)</label>
                 <input type="number" class="form-control" id="setpoint" placeholder="0.0" step="any">
+            </div>
+            <div class="form-group">
+                <label for="momentum">Momentum factor [0,1]</label>
+                <input type="number" class="form-control" id="momentum" placeholder="0.005" step="any">
             </div>
             <button type="button" class="btn btn-danger" id="run">Run</button>
             <button type="button" class="btn btn-primary" id="resetPosition">Reset Position</button>
@@ -62,8 +66,10 @@
         </form>
         <h4>Current Position: <span id="currentPosition"></span></h4>
       </div>
-      <div class="col-md-6">
+      <div class="col-md-6 text-center">
         <canvas id="myChart" width="400" height="400"></canvas>
+        <canvas id="field" width="400" height="222"></canvas>
+        <img src="field.png" id="fieldImg" style="display: none;">
       </div>
     </div>
 
