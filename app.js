@@ -3,6 +3,15 @@ var fieldCtx;
 var time = Date.now() / 1000.0;
 var fieldSim;
 var pos = 0;
+var robot;
+
+var Engine = Matter.Engine,
+    Render = Matter.Render,
+    World = Matter.World,
+    Bodies = Matter.Bodies,
+    Body = Matter.Body;
+
+var meterToPixel = 380/16.4592;
 
 $(function() {
     movable = new Motor();
@@ -18,11 +27,14 @@ $(function() {
         var momentum = $('#momentum').val();
         var move = $('#move').val();
         var setpoint = $('#setpoint').val();
-        runSimulation(p, i, d, ffv, ffa, move, tolerance, [{pose: setpoint, time: totalTime}, {pose: 0, time: totalTime}], momentum);
+        runSimulation(p, i, d, ffv, ffa, move, tolerance, [{pose: setpoint, time: totalTime}], momentum);
     });
 
     $('#resetPosition').click(function() {
         movable = new Motor();
+        robot.force.x = 0;
+        robot.velocity.x = 0;
+        Matter.Body.translate(robot, {x: -robot.position.x + 0.838 * meterToPixel / 2, y: 0});
         $('#currentPosition').text("0");
     });
 
@@ -30,6 +42,9 @@ $(function() {
         // $(this).closest('form').find("input[type=number]").val("");
         $('#sim-form').submit();
         movable = new Motor();
+        robot.force.x = 0;
+        robot.velocity.x = 0;
+        Matter.Body.translate(robot, {x: -robot.position.x + 0.838 * meterToPixel / 2, y: 0});
         $('#currentPosition').text("0");
     });
 
@@ -38,7 +53,7 @@ $(function() {
     });
 
     ctx = $("#myChart").get(0).getContext("2d");
-    fieldCtx = $('#field').get(0).getContext("2d");
+    // fieldCtx = $('#field').get(0).getContext("2d");
     createChart();
     createField();
 });
@@ -134,12 +149,12 @@ function FieldSimulation(canvasCtx, startingPos, size, fieldSizePixels, pixelToM
     this.fieldSize = fieldSizePixels;
 
     this.draw = function(){
-        this.ctx.clearRect(0, 0, this.fieldSize.x, this.fieldSize.y);
-        this.ctx.drawImage(document.getElementById("fieldImg"), 0, 0);
-        this.ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
-        this.ctx.fillRect(0, 0, this.fieldSize.x, this.fieldSize.y);
-        this.ctx.fillStyle = "blue";
-        this.ctx.fillRect(this.position.x * pixelToMeterRatio, this.position.y * pixelToMeterRatio, this.size.x * pixelToMeterRatio, this.size.y * pixelToMeterRatio);
+        // this.ctx.clearRect(0, 0, this.fieldSize.x, this.fieldSize.y);
+        // this.ctx.drawImage(document.getElementById("fieldImg"), 0, 0);
+        // this.ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+        // this.ctx.fillRect(0, 0, this.fieldSize.x, this.fieldSize.y);
+        // this.ctx.fillStyle = "blue";
+        // this.ctx.fillRect(this.position.x * pixelToMeterRatio, this.position.y * pixelToMeterRatio, this.size.x * pixelToMeterRatio, this.size.y * pixelToMeterRatio);
     };
 
     this.update = function(position){
@@ -170,14 +185,16 @@ function Motor(){
     };
 
     this.getPosition = function(){
-        return this.currentPosition;
+        return (robot.position.x - 0.838 * meterToPixel/2) / meterToPixel;
     };
 
     this.setOutput = function(value){
+        Body.applyForce( robot, {x: robot.position.x, y: robot.position.y}, {x: value / this.maxSpeed * 0.1, y: 0})
+        this.currentPosition = robot.position.x;
         var currentTime = Date.now() / 1000.0;
         var v = value * this.maxSpeed;
         this.velocity = v * (1 - this.momentum) + this.velocity * this.momentum;
-        this.currentPosition += this.velocity * (currentTime - this.lastUpdateTime);
+        // this.currentPosition += this.velocity * (currentTime - this.lastUpdateTime);
         this.lastUpdateTime = currentTime;
     };
 
@@ -306,3 +323,48 @@ function HermiteSpline(p0, v0, p1, v1, totalTime){
     };
 }
 
+$(document).ready(function(){
+       // module aliases
+
+
+// create an engine
+var engine = Engine.create();
+
+engine.world.gravity.y = 0;
+
+// create a renderer
+var render = Render.create({
+    element: document.getElementById('field'),
+    engine: engine,
+    options: {
+        width: 400,
+        height: 222,
+        background: 'field.png',
+        wireframes: false,  
+        showAngleIndicator: false
+    }
+});
+
+// create two boxes and a ground
+robot = Matter.Bodies.rectangle(0.838 * meterToPixel / 2, 1.3 * meterToPixel, 0.838 * meterToPixel, 0.838 * meterToPixel, {
+  mass: 54,
+  frictionAir: 0.1,
+  restitution: 0.0,
+  render: {
+    fillStyle: '#F35e66',
+    strokeStyle: 'transparent',
+    lineWidth: 1
+  }
+});
+
+
+// add all of the bodies to the world
+World.add(engine.world, [robot]);
+
+
+// run the engine
+Engine.run(engine);
+
+// run the renderer
+Render.run(render);
+});
