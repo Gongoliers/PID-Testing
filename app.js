@@ -347,7 +347,7 @@ var render = Render.create({
 
 // create two boxes and a ground
 robot = Matter.Bodies.rectangle(0.838 * meterToPixel / 2, 1.3 * meterToPixel, 0.838 * meterToPixel, 0.838 * meterToPixel, {
-  mass: 54,
+  mass: 0,
   frictionAir: 0.1,
   restitution: 0.0,
   render: {
